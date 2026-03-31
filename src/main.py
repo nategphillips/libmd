@@ -15,30 +15,31 @@ def get_last_names(authors: str) -> str:
 
     # First, split the authors by the word "and", then further split them by commas; finally, add
     # them to the list if the string is not empty
-    author_list: list[str] = [
+    author_list = [
         author.strip() for part in authors.split(" and ") for author in part.split(",") if author
     ]
 
-    formatted_authors: list[str] = []
+    def helper(name: str) -> str:
+        parts = name.split()
+
+        if not parts:
+            return ""
+
+        # Should probably extend this to cover more than just "Jr.", but for now this is all I need
+        return parts[-2] if parts[-1] == "Jr." and len(parts) >= 2 else parts[-1]
+
+    formatted_authors = []
 
     for author in author_list:
-        # Handle the special case where "et al." is present in the author's name and just add the
-        # entire string to the formatted authors list
-        if "et al." in author:
-            formatted_authors.append(author)
-        else:
-            # Split name by spaces
-            parts: list[str] = author.split()
+        et_al = "et al." in author
 
-            if parts:
-                # If the name exists, assume the last part is the last name
-                last_name: str = parts[-1]
-                # Handle the special case where "Jr." is present in the author's name by taking the
-                # second to last element as the last name
-                if parts[-1] == "Jr.":
-                    last_name = parts[-2]
+        # Assume only a single "author" exists, something like "Marcus Tullius Cicero et al.", and
+        # remove the "et al." to get the actual name
+        author = author.replace("et al.", "").strip()
+        last_name = helper(author)
 
-                formatted_authors.append(last_name)
+        if last_name:
+            formatted_authors.append(f"{last_name} et al." if et_al else last_name)
 
     # If there are multiple authors, separate them with spaces and add an ampersand between the last
     # two
@@ -48,7 +49,7 @@ def get_last_names(authors: str) -> str:
     return formatted_authors[0]
 
 
-def md_from_csv(csv_path: Path, md_path: Path):
+def md_from_csv(csv_path: Path, md_path: Path) -> None:
     """
     Creates and writes to a Markdown file using data from the provided CSV file.
     """
@@ -56,29 +57,29 @@ def md_from_csv(csv_path: Path, md_path: Path):
     df = pd.read_csv(csv_path, dtype={"Pages": str, "ISBN-13": str})
 
     # Extract the unique categories, sort them alphabetically, and convert to a list of strings
-    categories: list[str] = sorted(df["Category"].unique())
+    categories = sorted(df["Category"].unique())
 
     with open(md_path, mode="w", encoding="utf-8") as f:
         for category in categories:
             f.write(f"## {category}\n\n")
 
             # Filter the data for the current category only
-            category_df: pd.DataFrame = df[df["Category"] == category]
+            category_df = df[df["Category"] == category]
 
             # Use .loc to add a new column for last names
             category_df.loc[:, "Last Names"] = category_df["Author(s)"].apply(get_last_names)
 
             # First sort by first author's last name, then sort by title
-            sorted_df: pd.DataFrame = category_df.sort_values(by=["Last Names", "Title"])
+            sorted_df = category_df.sort_values(by=["Last Names", "Title"])
 
             f.write("| Author | Title | ISBN |\n")
             f.write("| ------ | ----- | ---- |\n")
 
             for _, row in sorted_df.iterrows():
-                last_names: str = str(row["Last Names"])
-                title: str = str(row["Title"])
-                isbn_type: str = str(row["ISBN-10"])
-                isbn: str = str(row["ISBN-13"])
+                last_names = row["Last Names"]
+                title = row["Title"]
+                isbn_type = row["ISBN-10"]
+                isbn = row["ISBN-13"]
 
                 if isbn_type == "Pre-ISBN":
                     f.write(f"| {last_names} | *{title}* | Pre-ISBN |\n")
@@ -99,8 +100,8 @@ def main() -> None:
     Entry point.
     """
 
-    csv_path: Path = Path("../data/example.csv")
-    md_path: Path = Path("../data/example.md")
+    csv_path = Path("../data/example.csv")
+    md_path = Path("../data/example.md")
 
     md_from_csv(csv_path, md_path)
 
