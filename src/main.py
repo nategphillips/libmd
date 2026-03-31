@@ -7,10 +7,6 @@ from pathlib import Path
 
 import pandas as pd
 
-# Enable copy-on-write since it will become the default in Pandas 3.0
-# https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
-pd.options.mode.copy_on_write = True
-
 
 def get_last_names(authors: str) -> str:
     """
@@ -90,6 +86,8 @@ def md_from_csv(csv_path: Path, md_path: Path):
                     f.write(f"| {last_names} | *{title}* | No ISBN |\n")
                 elif isbn_type == "LCCN":
                     f.write(f"| {last_names} | *{title}* | LCCN: {isbn} |\n")
+                elif isbn_type == "DOI":
+                    f.write(f"| {last_names} | *{title}* | DOI: {isbn} |\n")
                 else:
                     f.write(f"| {last_names} | *{title}* | {isbn} |\n")
 
