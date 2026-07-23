@@ -49,12 +49,54 @@ def get_last_names(authors: str) -> str:
     return formatted_authors[0]
 
 
+def write_table(f, books_df: pd.DataFrame) -> None:
+    """
+    Writes a Markdown table for the provided dataframe.
+    """
+
+    if books_df.empty:
+        return
+
+    books_df = books_df.copy()
+
+    # Use .loc to add a new column for last names
+    books_df.loc[:, "Last Names"] = books_df["Author(s)"].apply(get_last_names)
+
+    # First sort by first author's last name, then sort by title
+    sorted_df = books_df.sort_values(by=["Last Names", "Title"])
+
+    f.write("| Author | Title | ISBN |\n")
+    f.write("| ------ | ----- | ---- |\n")
+
+    for _, row in sorted_df.iterrows():
+        last_names = row["Last Names"]
+        title = row["Title"]
+        isbn_type = row["ISBN-10"]
+        isbn = row["ISBN-13"]
+
+        if isbn_type == "Pre-ISBN":
+            f.write(f"| {last_names} | *{title}* | Pre-ISBN |\n")
+        elif isbn_type == "No ISBN":
+            f.write(f"| {last_names} | *{title}* | No ISBN |\n")
+        elif isbn_type == "LCCN":
+            f.write(f"| {last_names} | *{title}* | LCCN: {isbn} |\n")
+        elif isbn_type == "DOI":
+            f.write(f"| {last_names} | *{title}* | DOI: {isbn} |\n")
+        else:
+            f.write(f"| {last_names} | *{title}* | {isbn} |\n")
+
+    f.write("\n")
+
+
 def md_from_csv(csv_path: Path, md_path: Path) -> None:
     """
     Creates and writes to a Markdown file using data from the provided CSV file.
     """
 
     df = pd.read_csv(csv_path, dtype={"Pages": str, "ISBN-13": str})
+
+    # Remove the troublesome `-` character for blank sub-category fields
+    df["Sub-category"] = df["Sub-category"].fillna("-").astype(str).str.strip()
 
     # Extract the unique categories, sort them alphabetically, and convert to a list of strings
     categories = sorted(df["Category"].unique())
@@ -64,35 +106,24 @@ def md_from_csv(csv_path: Path, md_path: Path) -> None:
             f.write(f"## {category}\n\n")
 
             # Filter the data for the current category only
-            category_df = df[df["Category"] == category]
+            category_df = df[df["Category"] == category].copy()
 
-            # Use .loc to add a new column for last names
-            category_df.loc[:, "Last Names"] = category_df["Author(s)"].apply(get_last_names)
+            # Books without a sub-category go directly under the category
+            no_sub_category_df = category_df[category_df["Sub-category"] == "-"]
 
-            # First sort by first author's last name, then sort by title
-            sorted_df = category_df.sort_values(by=["Last Names", "Title"])
+            write_table(f, no_sub_category_df)
 
-            f.write("| Author | Title | ISBN |\n")
-            f.write("| ------ | ----- | ---- |\n")
+            # Create sub-headings
+            sub_categories = sorted(
+                category_df.loc[category_df["Sub-category"] != "-", "Sub-category"].unique()
+            )
 
-            for _, row in sorted_df.iterrows():
-                last_names = row["Last Names"]
-                title = row["Title"]
-                isbn_type = row["ISBN-10"]
-                isbn = row["ISBN-13"]
+            for sub_category in sub_categories:
+                f.write(f"### {sub_category}\n\n")
 
-                if isbn_type == "Pre-ISBN":
-                    f.write(f"| {last_names} | *{title}* | Pre-ISBN |\n")
-                elif isbn_type == "No ISBN":
-                    f.write(f"| {last_names} | *{title}* | No ISBN |\n")
-                elif isbn_type == "LCCN":
-                    f.write(f"| {last_names} | *{title}* | LCCN: {isbn} |\n")
-                elif isbn_type == "DOI":
-                    f.write(f"| {last_names} | *{title}* | DOI: {isbn} |\n")
-                else:
-                    f.write(f"| {last_names} | *{title}* | {isbn} |\n")
+                sub_category_df = category_df[category_df["Sub-category"] == sub_category]
 
-            f.write("\n")
+                write_table(f, sub_category_df)
 
 
 def main() -> None:
