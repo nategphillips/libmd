@@ -13,11 +13,8 @@ def get_last_names(authors: str) -> str:
     Takes in a string of authors and returns their last names.
     """
 
-    # First, split the authors by the word "and", then further split them by commas; finally, add
-    # them to the list if the string is not empty
-    author_list = [
-        author.strip() for part in authors.split(" and ") for author in part.split(",") if author
-    ]
+    # Split authors by commas and add them to the list if the string is not empty
+    author_list = [author.strip() for author in str(authors).split(",") if author.strip()]
 
     def helper(name: str) -> str:
         parts = name.split()
@@ -94,6 +91,8 @@ def md_from_csv(csv_path: Path, md_path: Path) -> None:
     """
 
     df = pd.read_csv(csv_path, dtype={"Pages": str, "ISBN-13": str})
+    # Only extract books in my physical collection, others are marked as "Want"
+    df = df[df["Status"].astype(str).str.strip().eq("Have")].copy()
 
     # Remove the troublesome `-` character for blank sub-category fields
     df["Sub-category"] = df["Sub-category"].fillna("-").astype(str).str.strip()
